@@ -14,7 +14,7 @@ class SimulacaoRavenDbNoGoogleDrive
     public SimulacaoRavenDbNoGoogleDrive(string credencialPath, string idDaColecaoPasta)
     {
         var credencial = GoogleCredential.FromFile(credencialPath)
-            .CreateScoped(DriveService.ScopeConstants.Drive);
+                         .CreateScoped(DriveService.ScopeConstants.Drive);
 
         _service = new DriveService(new BaseClientService.Initializer
         {
@@ -185,9 +185,18 @@ class SimulacaoRavenDbNoGoogleDrive
 
 class Produto
 {
-    public string Id { get; set; }
-    public string Nome { get; set; }
-    public decimal Preco { get; set; }
+    public string Id {
+        get;
+        set;
+    }
+    public string Nome {
+        get;
+        set;
+    }
+    public decimal Preco {
+        get;
+        set;
+    }
 }
 
 class Program
@@ -207,7 +216,7 @@ class Program
 
         //await ravenDbSimulado.CriarDocumentoAsync(produto);
         //var a = 0;
-        //while (a < 200) 
+        //while (a < 200)
         //{
         //    await ravenDbSimulado.CriarDocumentoAsync(produto);
         //    a++;
