@@ -4,14 +4,14 @@ using Google.Apis.Services;
 using Google.Apis.Upload;
 using Newtonsoft.Json;
 
-class SimulacaoRavenDbNoGoogleDrive
+class RavenDriveDB
 {
     private readonly DriveService _service;
     private readonly string _idDaColecaoPasta;
 
     private const string MimeTypeJson = "application/json";
 
-    public SimulacaoRavenDbNoGoogleDrive(string credencialPath, string idDaColecaoPasta)
+    public RavenDriveDB(string credencialPath, string idDaColecaoPasta)
     {
         var credencial = GoogleCredential.FromFile(credencialPath)
             .CreateScoped(DriveService.ScopeConstants.Drive);
@@ -197,7 +197,7 @@ class Program
         string credencialPath = @"./credenciais.json";
         string idDaColecaoPasta = "12XHnuZsa26-XJL_uQJK2NVl-CqHEVLd5";
 
-        var ravenDbSimulado = new SimulacaoRavenDbNoGoogleDrive(credencialPath, idDaColecaoPasta);
+        var ravenDbSimulado = new RavenDriveDB(credencialPath, idDaColecaoPasta);
 
         var produto = new Produto
         {
