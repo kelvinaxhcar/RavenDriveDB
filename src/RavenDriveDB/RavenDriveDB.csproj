@@ -10,7 +10,7 @@
 	  <Authors>Kelvin Mateus Axhcar</Authors>
 	  <RepositoryUrl>https://github.com/kelvinaxhcar/RavenDriveDB</RepositoryUrl>
 	  <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-	  <PackageReadmeFile>../README.md</PackageReadmeFile>
+	  <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,9 +21,7 @@
     <None Update="credenciais.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="../README.md">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+	  <None Include="README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
 </Project>
