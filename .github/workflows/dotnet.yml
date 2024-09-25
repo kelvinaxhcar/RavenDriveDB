@@ -28,4 +28,4 @@ jobs:
       run: |
         cd src
         cd out
-        dotnet nuget push *.nupkg --api-key ${{ secrets.RAVEN_DRIVE_DB_NUGET }} --source "https://nuget.pkg.github.com/Kelvin_Axhcar/index.json" --skip-duplicate
+        dotnet nuget push *.nupkg --api-key ${{ secrets.RAVEN_DRIVE_DB_NUGET }} --source "https://api.nuget.org/v3/index.json" --skip-duplicate
