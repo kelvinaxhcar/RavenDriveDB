@@ -26,7 +26,7 @@ namespace RavenDriveDB.Packge
             _idDaColecaoPasta = idDaColecaoPasta;
         }
 
-        public async Task CriarDocumentoAsync<T>(T objeto) where T : class
+        public async Task<string> CriarDocumentoAsync<T>(T objeto) where T : class
         {
             try
             {
@@ -50,11 +50,11 @@ namespace RavenDriveDB.Packge
                 string novoNome = $"{typeof(T).Name}-{uploadRequest.ResponseBody.Id}";
                 await AtualizarNomeDocumentoAsync(uploadRequest.ResponseBody.Id, novoNome);
 
-                Console.WriteLine($"Documento '{novoNome}' criado e atualizado com sucesso! ID: {uploadRequest.ResponseBody.Id}");
+                return uploadRequest.ResponseBody.Id;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao criar documento: {ex.Message}");
+                throw new Exception($"Erro ao criar documento: {ex.Message}");
             }
         }
 
@@ -95,13 +95,11 @@ namespace RavenDriveDB.Packge
 
                 T objeto = JsonConvert.DeserializeObject<T>(conteudoJson);
 
-                Console.WriteLine($"Documento com ID {documentoId} lido com sucesso e deserializado.");
                 return objeto;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao ler documento: {ex.Message}");
-                throw;
+                throw new Exception($"Erro ao ler documento: {ex.Message}");
             }
         }
 
@@ -123,12 +121,12 @@ namespace RavenDriveDB.Packge
                 }
                 else
                 {
-                    Console.WriteLine("Nenhum documento encontrado na coleção.");
+                    throw new Exception("Nenhum documento encontrado na coleção.");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao listar documentos: {ex.Message}");
+                throw new Exception($"Erro ao listar documentos: {ex.Message}");
             }
         }
 
@@ -155,7 +153,7 @@ namespace RavenDriveDB.Packge
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao consultar documentos: {ex.Message}");
+                throw new Exception($"Erro ao consultar documentos: {ex.Message}");
             }
 
             return resultados;
@@ -175,12 +173,10 @@ namespace RavenDriveDB.Packge
                 var updatedFile = await updateRequest.UploadAsync();
 
                 ValidarProgressoUpload(updatedFile);
-
-                Console.WriteLine($"Documento com ID {documentoId} atualizado com sucesso!");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao atualizar documento: {ex.Message}");
+                throw new Exception($"Erro ao atualizar documento: {ex.Message}");
             }
         }
     }
