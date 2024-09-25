@@ -20,9 +20,12 @@ jobs:
         dotnet restore
       
     - name: Geração do pacote
-      run: dotnet build -c Release -o out
+      run: |
+        cd src
+        dotnet build -c Release -o out
     
     - name: Push no NuGet
       run: |
+        cd src
         cd out
         dotnet nuget push *.nupkg --api-key ${{ secrets.RAVEN_DRIVE_DB_NUGET }} --source "https://nuget.pkg.github.com/Kelvin_Axhcar/index.json" --skip-duplicate
