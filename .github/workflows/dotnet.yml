@@ -5,27 +5,36 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 8.0.x
+
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.9.14
+      with:
+        versionSpec: '5.x'
+
+    - name: Determine version
+      id: gitversion
+      run: gitversion /output json /showvariable FullSemVer
+
     - name: Restore dependencies
       run: |
         cd src
         dotnet restore
-      
+
     - name: Geração do pacote
       run: |
         cd src
-        dotnet build -c Release -o out
-    
+        dotnet build -c Release -o out /p:Version=${{ steps.gitversion.outputs.FullSemVer }}
+
     - name: Push no NuGet
       run: |
-        cd src
-        cd out
+        cd src/out
         dotnet nuget push *.nupkg --api-key ${{ secrets.RAVEN_DRIVE_DB_NUGET }} --source "https://api.nuget.org/v3/index.json" --skip-duplicate
