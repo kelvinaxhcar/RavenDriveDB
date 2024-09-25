@@ -35,12 +35,14 @@ namespace RavenDriveDB.Test
             };
 
             var result = await _ravenDriveDB.CriarDocumentoAsync(produto);
+            await Task.Delay(10);
 
-            var produtosFiltrados = await _ravenDriveDB.ConsultarDocumentosAsync<Produto>(p => p.Nome == nome) ?? new List<Produto>();
+            var produtosFiltrados = await _ravenDriveDB.ConsultarDocumentosAsync<Produto>(p => p.Nome == nome, new List<string>() {$"Nome:{nome}" }) ?? new List<Produto>();
 
             const int quantidadeEsperada = 1;
             Assert.Equal(quantidadeEsperada, produtosFiltrados.Count);
         }
+
 
         [Fact]
         public async Task Deve_atualizar_documento()
@@ -54,8 +56,9 @@ namespace RavenDriveDB.Test
             };
 
             var id = await _ravenDriveDB.CriarDocumentoAsync(produto);
+            await Task.Delay(10);
 
-            var produtosFiltrados = await _ravenDriveDB.ConsultarDocumentosAsync<Produto>(p => p.Nome == nome);
+            var produtosFiltrados = await _ravenDriveDB.ConsultarDocumentosAsync<Produto>(p => p.Nome == nome, new List<string>() { $"Nome:{nome}" });
 
             var produtoEncontrado = produtosFiltrados.FirstOrDefault();
 

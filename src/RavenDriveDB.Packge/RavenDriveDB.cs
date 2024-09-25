@@ -30,7 +30,13 @@ namespace RavenDriveDB.Packge
         {
             try
             {
-                string nomeDoDocumentoTemp = $"{typeof(T).Name}-{Guid.NewGuid()}-temp";
+                var propriedades = typeof(T).GetProperties()
+                                            .Select(prop => $"{prop.Name}:{prop.GetValue(objeto)}")
+                                            .ToArray();
+
+                string propriedadesNoNome = string.Join("_", propriedades);
+
+                string nomeDoDocumentoTemp = $"{typeof(T).Name}-{Guid.NewGuid()}-{propriedadesNoNome}-temp";
                 string conteudoDoDocumento = JsonConvert.SerializeObject(objeto, Formatting.Indented);
 
                 var fileMetadata = new Google.Apis.Drive.v3.Data.File
@@ -47,7 +53,7 @@ namespace RavenDriveDB.Packge
                 var progress = await uploadRequest.UploadAsync();
                 ValidarProgressoUpload(progress);
 
-                string novoNome = $"{typeof(T).Name}-{uploadRequest.ResponseBody.Id}";
+                string novoNome = $"{typeof(T).Name}-{uploadRequest.ResponseBody.Id}-{propriedadesNoNome}";
                 await AtualizarNomeDocumentoAsync(uploadRequest.ResponseBody.Id, novoNome);
 
                 return uploadRequest.ResponseBody.Id;
@@ -57,6 +63,7 @@ namespace RavenDriveDB.Packge
                 throw new Exception($"Erro ao criar documento: {ex.Message}");
             }
         }
+
 
         private static MemoryStream CriarMemoryStream(string conteudo)
         {
@@ -130,16 +137,23 @@ namespace RavenDriveDB.Packge
             }
         }
 
-        public async Task<List<T>> ConsultarDocumentosAsync<T>(Func<T, bool> criterio) where T : class
+        public async Task<List<T>> ConsultarDocumentosAsync<T>(Func<T, bool> criterio, List<string> filtros = null) where T : class
         {
             var resultados = new List<T>();
 
             try
             {
                 var request = _service.Files.List();
-                request.Q = $"'{_idDaColecaoPasta}' in parents and mimeType='{MimeTypeJson}'";
+                var query = $"'{_idDaColecaoPasta}' in parents and mimeType='{MimeTypeJson}'";
+
+                if (filtros != null && filtros.Any())
+                {
+                    var filtroQuery = string.Join(" and ", filtros.Select(f => $"name contains '{f}'"));
+                    query += $" and ({filtroQuery})";
+                }
+
+                request.Q = query;
                 request.Fields = "files(id, name)";
-                //request.PageSize = 100;
 
                 var result = await request.ExecuteAsync();
 
