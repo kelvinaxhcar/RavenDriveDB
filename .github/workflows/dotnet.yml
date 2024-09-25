@@ -15,7 +15,9 @@ jobs:
       with:
         dotnet-version: 5.0.x
     - name: Restore dependencies
-      run: dotnet restore
+      run: |
+        cd src
+        dotnet restore
       
     - name: Geração do pacote
       run: dotnet build -c Release -o out
