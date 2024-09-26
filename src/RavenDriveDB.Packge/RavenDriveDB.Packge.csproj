@@ -5,11 +5,12 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<PackageId>RavendriveDB</PackageId>
-		<Version>1.0.4</Version>
+		<Version>1.0.5</Version>
 		<Authors>Kelvin Mateus Axhcar</Authors>
 		<RepositoryUrl>https://github.com/kelvinaxhcar/RavenDriveDB</RepositoryUrl>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>logo.png</PackageIcon>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -21,6 +22,7 @@
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
 		<None Include="README.md" Pack="true" PackagePath="\"/>
+		<None Include="logo.png" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 </Project>
