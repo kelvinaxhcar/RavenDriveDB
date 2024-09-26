@@ -26,15 +26,11 @@ namespace RavenDriveDB.Packge
             _idDaColecaoPasta = idDaColecaoPasta;
         }
 
-        public async Task<string> CriarDocumentoAsync<T>(T objeto) where T : class
+        public async Task<string> StoreAsync<T>(T objeto) where T : class
         {
             try
             {
-                var propriedades = typeof(T).GetProperties()
-                                            .Select(prop => $"{prop.Name}:{prop.GetValue(objeto)}")
-                                            .ToArray();
-
-                string propriedadesNoNome = string.Join("_", propriedades);
+                string propriedadesNoNome = ObterNomesDasPropriedades(objeto);
 
                 string nomeDoDocumentoTemp = $"{typeof(T).Name}-{Guid.NewGuid()}-{propriedadesNoNome}-temp";
                 string conteudoDoDocumento = JsonConvert.SerializeObject(objeto, Formatting.Indented);
@@ -90,7 +86,7 @@ namespace RavenDriveDB.Packge
             await updateRequest.ExecuteAsync();
         }
 
-        public async Task<T> LerDocumentoAsync<T>(string documentoId)
+        public async Task<T> LoadAsync<T>(string documentoId)
         {
             try
             {
@@ -137,9 +133,11 @@ namespace RavenDriveDB.Packge
             }
         }
 
-        public async Task<List<T>> ConsultarDocumentosAsync<T>(Func<T, bool> criterio, List<string> filtros = null) where T : class
+        public async Task<List<T>> GetAsync<T>(Func<T, bool> criterio, List<string> filtros = null) where T : class
         {
             var resultados = new List<T>();
+            filtros ??= new List<string>();
+            filtros.Add($"{typeof(T).Name}-");
 
             try
             {
@@ -159,9 +157,10 @@ namespace RavenDriveDB.Packge
 
                 if (result.Files != null && result.Files.Any())
                 {
-                    var tarefas = result.Files.Select(file => LerDocumentoAsync<T>(file.Id));
+                    var tarefas = result.Files.Select(file => LoadAsync<T>(file.Id));
                     var documentos = await Task.WhenAll(tarefas);
 
+                    //TODO: Remover consulta em memoria
                     resultados.AddRange(documentos.Where(d => d != null && criterio(d)));
                 }
             }
@@ -173,10 +172,12 @@ namespace RavenDriveDB.Packge
             return resultados;
         }
 
-        public async Task AtualizarDocumentoAsync<T>(string documentoId, T novoObjeto) where T : class
+        public async Task UpdateAsync<T>(string documentoId, T novoObjeto) where T : class
         {
             try
             {
+                string propriedadesNoNome = ObterNomesDasPropriedades(novoObjeto);
+
                 string conteudoAtualizado = JsonConvert.SerializeObject(novoObjeto, Formatting.Indented);
                 using var mediaContent = CriarMemoryStream(conteudoAtualizado);
 
@@ -185,6 +186,8 @@ namespace RavenDriveDB.Packge
                 updateRequest.Fields = "id, name";
 
                 var updatedFile = await updateRequest.UploadAsync();
+                string novoNome = $"{typeof(T).Name}-{updateRequest.ResponseBody.Id}-{propriedadesNoNome}";
+                await AtualizarNomeDocumentoAsync(updateRequest.ResponseBody.Id, novoNome);
 
                 ValidarProgressoUpload(updatedFile);
             }
@@ -192,6 +195,16 @@ namespace RavenDriveDB.Packge
             {
                 throw new Exception($"Erro ao atualizar documento: {ex.Message}");
             }
+        }
+
+        private static string ObterNomesDasPropriedades<T>(T novoObjeto) where T : class
+        {
+            var propriedades = typeof(T).GetProperties()
+                                                        .Select(prop => $"{prop.Name}:{prop.GetValue(novoObjeto)}")
+                                                        .ToArray();
+
+            string propriedadesNoNome = string.Join("_", propriedades);
+            return propriedadesNoNome;
         }
     }
 }

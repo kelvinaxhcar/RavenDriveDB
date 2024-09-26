@@ -14,13 +14,13 @@ namespace RavenDriveDB.Test
         [Fact]
         public async Task Deve_criar_documento()
         {
-            var produto = new Produto
+            var produto = new MinhaClasse
             {
                 Nome = "Notebook 2",
                 Preco = 3500.99M
             };
 
-            var result = await _ravenDriveDB.CriarDocumentoAsync(produto);
+            var result = await _ravenDriveDB.StoreAsync(produto);
             Assert.NotNull(result);
         }
 
@@ -28,16 +28,16 @@ namespace RavenDriveDB.Test
         public async Task Deve_consultar_documento()
         {
             var nome = $"Notebook {Guid.NewGuid()}";
-            var produto = new Produto
+            var produto = new MinhaClasse
             {
                 Nome = nome,
                 Preco = 3500.99M
             };
 
-            var result = await _ravenDriveDB.CriarDocumentoAsync(produto);
+            var result = await _ravenDriveDB.StoreAsync(produto);
             await Task.Delay(10);
 
-            var produtosFiltrados = await _ravenDriveDB.ConsultarDocumentosAsync<Produto>(p => p.Nome == nome, new List<string>() {$"Nome:{nome}" }) ?? new List<Produto>();
+            var produtosFiltrados = await _ravenDriveDB.GetAsync<MinhaClasse>(p => p.Nome == nome, new List<string>() {$"Nome:{nome}" }) ?? new List<MinhaClasse>();
 
             const int quantidadeEsperada = 1;
             Assert.Equal(quantidadeEsperada, produtosFiltrados.Count);
@@ -49,24 +49,24 @@ namespace RavenDriveDB.Test
         {
             var nome = $"Notebook {Guid.NewGuid()} {nameof(Deve_atualizar_documento)}";
 
-            var produto = new Produto
+            var produto = new MinhaClasse
             {
                 Nome = nome,
                 Preco = 3500.99M
             };
 
-            var id = await _ravenDriveDB.CriarDocumentoAsync(produto);
+            var id = await _ravenDriveDB.StoreAsync(produto);
             await Task.Delay(10);
 
-            var produtosFiltrados = await _ravenDriveDB.ConsultarDocumentosAsync<Produto>(p => p.Nome == nome, new List<string>() { $"Nome:{nome}" });
+            var produtosFiltrados = await _ravenDriveDB.GetAsync<MinhaClasse>(p => p.Nome == nome, new List<string>() { $"Nome:{nome}" });
 
             var produtoEncontrado = produtosFiltrados.FirstOrDefault();
 
             produtoEncontrado.Preco = 2999.99M;
 
-            await _ravenDriveDB.AtualizarDocumentoAsync(id, produtoEncontrado);
+            await _ravenDriveDB.UpdateAsync(id, produtoEncontrado);
 
-            var produtoLido = await _ravenDriveDB.LerDocumentoAsync<Produto>(id);
+            var produtoLido = await _ravenDriveDB.LoadAsync<MinhaClasse>(id);
 
             Assert.Equal(2999.99M, produtoLido.Preco);
         }
