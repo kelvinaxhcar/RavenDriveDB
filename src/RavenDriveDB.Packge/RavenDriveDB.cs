@@ -1,210 +1,133 @@
-﻿using Google.Apis.Auth.OAuth2;
-using Google.Apis.Drive.v3;
-using Google.Apis.Services;
-using Google.Apis.Upload;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 
 namespace RavenDriveDB.Packge
 {
     public class RavenDriveDB
     {
-        private readonly DriveService _service;
-        private readonly string _idDaColecaoPasta;
-
+        private readonly IRavenStorage _storage;
+        public string? IdDaColecaoPasta { get; private set; }
         private const string MimeTypeJson = "application/json";
 
-        public RavenDriveDB(string credencialPath, string idDaColecaoPasta)
+        /// <summary>
+        /// Construtor para uso em produção (Google Drive).
+        /// </summary>
+        public RavenDriveDB(string credencialPath, string? idDaColecaoPasta = null)
         {
-            var credencial = GoogleCredential.FromFile(credencialPath)
-                .CreateScoped(DriveService.ScopeConstants.Drive);
+            _storage = new GoogleDriveStorage(credencialPath);
+            IdDaColecaoPasta = idDaColecaoPasta;
+        }
 
-            _service = new DriveService(new BaseClientService.Initializer
-            {
-                HttpClientInitializer = credencial,
-            });
+        /// <summary>
+        /// Construtor para Injeção de Dependência (Testes ou outros provedores).
+        /// </summary>
+        public RavenDriveDB(IRavenStorage storage, string? idDaColecaoPasta = null)
+        {
+            _storage = storage;
+            IdDaColecaoPasta = idDaColecaoPasta;
+        }
 
-            _idDaColecaoPasta = idDaColecaoPasta;
+        public async Task<string> CreateFolderAsync(string folderName, string? parentFolderId = null)
+        {
+            IdDaColecaoPasta = await _storage.CreateFolderAsync(folderName, parentFolderId);
+            return IdDaColecaoPasta;
+        }
+
+        public void SetFolderId(string folderId)
+        {
+            IdDaColecaoPasta = folderId;
+        }
+
+        public async Task<string?> FindFolderByNameAsync(string folderName, string? parentId = null)
+        {
+            return await _storage.FindFolderByNameAsync(folderName, parentId);
         }
 
         public async Task<string> StoreAsync<T>(T objeto) where T : class
         {
-            try
-            {
-                string propriedadesNoNome = ObterNomesDasPropriedades(objeto);
+            if (string.IsNullOrEmpty(IdDaColecaoPasta))
+                throw new RavenDriveException("ID da coleção não configurado. Chame CreateFolderAsync ou SetFolderId.");
 
-                string nomeDoDocumentoTemp = $"{typeof(T).Name}-{Guid.NewGuid()}-{propriedadesNoNome}-temp";
-                string conteudoDoDocumento = JsonConvert.SerializeObject(objeto, Formatting.Indented);
+            string propriedadesNoNome = ObterNomesDasPropriedades(objeto);
+            string nomeDoDocumento = $"{typeof(T).Name}-{Guid.NewGuid()}-{propriedadesNoNome}-temp";
 
-                var fileMetadata = new Google.Apis.Drive.v3.Data.File
-                {
-                    Name = nomeDoDocumentoTemp,
-                    Parents = new List<string> { _idDaColecaoPasta }
-                };
+            var id = await _storage.StoreAsync(objeto, IdDaColecaoPasta, nomeDoDocumento);
 
-                using var mediaContent = CriarMemoryStream(conteudoDoDocumento);
+            // Atualiza o nome para incluir o ID do Storage (RavenDB style)
+            string novoNome = $"{typeof(T).Name}-{id}-{propriedadesNoNome}";
+            await _storage.UpdateAsync(id, objeto, novoNome);
 
-                var uploadRequest = _service.Files.Create(fileMetadata, mediaContent, MimeTypeJson);
-                uploadRequest.Fields = "*";
-
-                var progress = await uploadRequest.UploadAsync();
-                ValidarProgressoUpload(progress);
-
-                string novoNome = $"{typeof(T).Name}-{uploadRequest.ResponseBody.Id}-{propriedadesNoNome}";
-                await AtualizarNomeDocumentoAsync(uploadRequest.ResponseBody.Id, novoNome);
-
-                return uploadRequest.ResponseBody.Id;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Erro ao criar documento: {ex.Message}");
-            }
-        }
-
-
-        private static MemoryStream CriarMemoryStream(string conteudo)
-        {
-            return new MemoryStream(System.Text.Encoding.UTF8.GetBytes(conteudo));
-        }
-
-        private static void ValidarProgressoUpload(IUploadProgress progress)
-        {
-            if (progress.Status == UploadStatus.Failed)
-            {
-                throw new Exception($"Erro no upload: {progress.Exception?.Message}");
-            }
-        }
-
-        private async Task AtualizarNomeDocumentoAsync(string documentoId, string novoNome)
-        {
-            var updateMetadata = new Google.Apis.Drive.v3.Data.File
-            {
-                Name = novoNome
-            };
-
-            var updateRequest = _service.Files.Update(updateMetadata, documentoId);
-            updateRequest.Fields = "id, name";
-            await updateRequest.ExecuteAsync();
+            return id;
         }
 
         public async Task<T> LoadAsync<T>(string documentoId)
         {
-            try
-            {
-                var getRequest = _service.Files.Get(documentoId);
-                using var stream = new MemoryStream();
-                await getRequest.DownloadAsync(stream);
-
-                string conteudoJson = System.Text.Encoding.UTF8.GetString(stream.ToArray());
-
-                T objeto = JsonConvert.DeserializeObject<T>(conteudoJson);
-
-                return objeto;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Erro ao ler documento: {ex.Message}");
-            }
-        }
-
-        public async Task ListarDocumentosAsync()
-        {
-            try
-            {
-                var request = _service.Files.List();
-                request.Q = $"'{_idDaColecaoPasta}' in parents";
-                var result = await request.ExecuteAsync();
-
-                Console.WriteLine($"Documentos na coleção (ID: {_idDaColecaoPasta}):");
-                if (result.Files != null && result.Files.Any())
-                {
-                    foreach (var file in result.Files)
-                    {
-                        Console.WriteLine("{0} ({1})", file.Name, file.Id);
-                    }
-                }
-                else
-                {
-                    throw new Exception("Nenhum documento encontrado na coleção.");
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Erro ao listar documentos: {ex.Message}");
-            }
+            return await _storage.LoadAsync<T>(documentoId);
         }
 
         public async Task<List<T>> GetAsync<T>(Func<T, bool> criterio, List<string> filtros = null) where T : class
         {
-            var resultados = new List<T>();
+            if (string.IsNullOrEmpty(IdDaColecaoPasta))
+                throw new RavenDriveException("ID da coleção não configurado.");
+
             filtros ??= new List<string>();
             filtros.Add($"{typeof(T).Name}-");
 
-            try
+            var query = $"mimeType='{MimeTypeJson}'";
+            if (filtros.Any())
             {
-                var request = _service.Files.List();
-                var query = $"'{_idDaColecaoPasta}' in parents and mimeType='{MimeTypeJson}'";
-
-                if (filtros != null && filtros.Any())
-                {
-                    var filtroQuery = string.Join(" and ", filtros.Select(f => $"name contains '{f}'"));
-                    query += $" and ({filtroQuery})";
-                }
-
-                request.Q = query;
-                request.Fields = "files(id, name)";
-
-                var result = await request.ExecuteAsync();
-
-                if (result.Files != null && result.Files.Any())
-                {
-                    var tarefas = result.Files.Select(file => LoadAsync<T>(file.Id));
-                    var documentos = await Task.WhenAll(tarefas);
-
-                    //TODO: Remover consulta em memoria
-                    resultados.AddRange(documentos.Where(d => d != null && criterio(d)));
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Erro ao consultar documentos: {ex.Message}");
+                var filtroQuery = string.Join(" and ", filtros.Select(f => $"name contains '{f}'"));
+                query += $" and ({filtroQuery})";
             }
 
-            return resultados;
+            var files = await _storage.ListFilesAsync(IdDaColecaoPasta, query);
+
+            // Download paralelo
+            var tarefas = files.Select(f => _storage.LoadAsync<T>(f.Id));
+            var documentos = await Task.WhenAll(tarefas);
+
+            return documentos.Where(d => d != null && (criterio == null || criterio(d))).ToList();
         }
 
         public async Task UpdateAsync<T>(string documentoId, T novoObjeto) where T : class
         {
-            try
-            {
-                string propriedadesNoNome = ObterNomesDasPropriedades(novoObjeto);
+            string propriedadesNoNome = ObterNomesDasPropriedades(novoObjeto);
+            string novoNome = $"{typeof(T).Name}-{documentoId}-{propriedadesNoNome}";
+            await _storage.UpdateAsync(documentoId, novoObjeto, novoNome);
+        }
 
-                string conteudoAtualizado = JsonConvert.SerializeObject(novoObjeto, Formatting.Indented);
-                using var mediaContent = CriarMemoryStream(conteudoAtualizado);
+        public async Task DeleteAsync(string documentoId)
+        {
+            await _storage.DeleteAsync(documentoId);
+        }
 
-                var updateMetadata = new Google.Apis.Drive.v3.Data.File();
-                var updateRequest = _service.Files.Update(updateMetadata, documentoId, mediaContent, MimeTypeJson);
-                updateRequest.Fields = "id, name";
+        public async Task DeleteAllAsync()
+        {
+            if (string.IsNullOrEmpty(IdDaColecaoPasta)) return;
 
-                var updatedFile = await updateRequest.UploadAsync();
-                string novoNome = $"{typeof(T).Name}-{updateRequest.ResponseBody.Id}-{propriedadesNoNome}";
-                await AtualizarNomeDocumentoAsync(updateRequest.ResponseBody.Id, novoNome);
-
-                ValidarProgressoUpload(updatedFile);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Erro ao atualizar documento: {ex.Message}");
-            }
+            var files = await _storage.ListFilesAsync(IdDaColecaoPasta, $"trashed = false");
+            var tarefas = files.Select(f => _storage.DeleteAsync(f.Id));
+            await Task.WhenAll(tarefas);
         }
 
         private static string ObterNomesDasPropriedades<T>(T novoObjeto) where T : class
         {
             var propriedades = typeof(T).GetProperties()
+                                                        .Where(prop => prop.Name != "Id")
                                                         .Select(prop => $"{prop.Name}:{prop.GetValue(novoObjeto)}")
                                                         .ToArray();
 
             string propriedadesNoNome = string.Join("_", propriedades);
+            if (propriedadesNoNome.Length > 100)
+                propriedadesNoNome = propriedadesNoNome.Substring(0, 97) + "...";
+
             return propriedadesNoNome;
         }
+
     }
 }
+
+

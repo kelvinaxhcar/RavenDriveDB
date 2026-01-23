@@ -1,16 +1,9 @@
+using RavenDriveDB.Packge;
+
 namespace RavenDriveDB.Test
 {
-    public class Test_RavenDriveDB
+    public class Test_RavenDriveDB : TesteBase
     {
-        private const string _credencialPath = @"./credenciais.json";
-        private const string _idDaColecaoPasta = "12XHnuZsa26-XJL_uQJK2NVl-CqHEVLd5";
-        private readonly Packge.RavenDriveDB _ravenDriveDB;
-
-        public Test_RavenDriveDB()
-        {
-            _ravenDriveDB = new Packge.RavenDriveDB(_credencialPath, _idDaColecaoPasta);
-        }
-
         [Fact]
         public async Task Deve_criar_documento()
         {
@@ -69,6 +62,29 @@ namespace RavenDriveDB.Test
             var produtoLido = await _ravenDriveDB.LoadAsync<MinhaClasse>(id);
 
             Assert.Equal(2999.99M, produtoLido.Preco);
+        }
+
+        [Fact]
+        public async Task Deve_excluir_documento()
+        {
+            var produto = new MinhaClasse { Nome = "Para Excluir", Preco = 100 };
+            var id = await _ravenDriveDB.StoreAsync(produto);
+
+            await _ravenDriveDB.DeleteAsync(id);
+
+            await Assert.ThrowsAsync<RavenDriveNotFoundException>(() => _ravenDriveDB.LoadAsync<MinhaClasse>(id));
+        }
+
+        [Fact]
+        public async Task Deve_excluir_todos_os_documentos()
+        {
+            await _ravenDriveDB.StoreAsync(new MinhaClasse { Nome = "Bulk 1" });
+            await _ravenDriveDB.StoreAsync(new MinhaClasse { Nome = "Bulk 2" });
+
+            await _ravenDriveDB.DeleteAllAsync();
+
+            var resultados = await _ravenDriveDB.GetAsync<MinhaClasse>(null);
+            Assert.Empty(resultados);
         }
     }
 }
